@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+websockets
+langchain
+langchain-google-genai
+langgraph
+pydantic
+python-dotenv
+pymupdf
+google-generativeai

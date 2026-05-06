@@ -8,3 +8,4 @@ pydantic
 python-dotenv
 pymupdf
 google-generativeai
+google-genai

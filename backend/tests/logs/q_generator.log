@@ -1,0 +1,36 @@
+2026-05-06 17:24:03,408 [INFO] __main__: Technical questions
+2026-05-06 17:24:03,408 [INFO] instructor.auto_client: Initializing groq provider with model llama-3.3-70b-versatile
+2026-05-06 17:24:03,436 [INFO] instructor.auto_client: Client initialized
+2026-05-06 17:24:03,436 [INFO] tasks.q_generator: [QuestionGenerator] Generating 5 technical questions (skills=4)
+2026-05-06 17:24:04,087 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:24:04,095 [INFO] __main__: {'question': 'How do you handle errors in a FastAPI application?'}
+2026-05-06 17:24:04,095 [INFO] __main__: {'question': 'What is the difference between a LEFT JOIN and an INNER JOIN in PostgreSQL?'}
+2026-05-06 17:24:04,095 [INFO] __main__: {'question': 'How do you optimize the performance of a Docker container running a Python application?'}
+2026-05-06 17:24:04,095 [INFO] __main__: {'question': 'What is the purpose of the `async` keyword in Python, and how is it used in FastAPI?'}
+2026-05-06 17:24:04,095 [INFO] __main__: {'question': 'How do you implement database migration scripts in a PostgreSQL database using Python?'}
+2026-05-06 17:24:04,095 [INFO] __main__: DSA question
+2026-05-06 17:24:04,095 [INFO] tasks.q_generator: [QuestionGenerator] Generating DSA question (skills=4, topic=arrays)
+2026-05-06 17:24:04,949 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:24:04,950 [INFO] __main__: {'title': 'Find Pairs in Array', 'prompt': 'Given an array of integers and a target sum, find all pairs of elements in the array that add up to the target sum. Each pair should be returned as a list of two integers. If no pairs are found, return an empty list.', 'constraints': None, 'examples': [{'input': '[1, 2, 3, 4, 5], 7', 'output': '[[2, 5], [3, 4]]', 'explanation': None}, {'input': '[1, 2, 3, 4, 5], 10', 'output': '[]', 'explanation': None}], 'sample_cases': [{'input': '[1, 2, 3, 4, 5], 7', 'output': '[[2, 5], [3, 4]]', 'explanation': None}, {'input': '[1, 2, 3, 4, 5], 10', 'output': '[]', 'explanation': None}, {'input': '[5, 5, 5, 5], 10', 'output': '[[5, 5]]', 'explanation': None}]}
+2026-05-06 17:24:04,950 [INFO] __main__: SQL question
+2026-05-06 17:24:04,950 [INFO] tasks.q_generator: [QuestionGenerator] Generating SQL question (skills=4, topic=joins)
+2026-05-06 17:24:05,789 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:24:05,792 [INFO] __main__: {'title': 'Joining Orders and Customers', 'prompt': 'Write a SQL query to join the orders and customers tables based on the customer_id column. The query should return the customer name, order id, and order date.', 'schema': [{'name': 'orders', 'columns': ['order_id', 'customer_id', 'order_date']}, {'name': 'customers', 'columns': ['customer_id', 'customer_name']}], 'examples': [{'input': 'SELECT * FROM orders JOIN customers ON orders.customer_id = customers.customer_id', 'output': "[(1, 'John Doe', 1, '2022-01-01'), (2, 'Jane Doe', 2, '2022-01-15')]"}], 'sample_cases': [{'input': " orders table: [(1, 1, '2022-01-01'), (2, 2, '2022-01-15')] customers table: [(1, 'John Doe'), (2, 'Jane Doe')]", 'output': "[(1, 'John Doe', 1, '2022-01-01'), (2, 'Jane Doe', 2, '2022-01-15')]"}]}
+2026-05-06 17:24:43,190 [INFO] __main__: Technical questions
+2026-05-06 17:24:43,191 [INFO] instructor.auto_client: Initializing groq provider with model llama-3.3-70b-versatile
+2026-05-06 17:24:43,223 [INFO] instructor.auto_client: Client initialized
+2026-05-06 17:24:43,223 [INFO] tasks.q_generator: [QuestionGenerator] Generating 5 technical questions (skills=4)
+2026-05-06 17:24:44,028 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:24:44,037 [INFO] __main__: {'question': 'What is the difference between a process and a thread in Python?'}
+2026-05-06 17:24:44,037 [INFO] __main__: {'question': 'How do you handle asynchronous requests in FastAPI?'}
+2026-05-06 17:24:44,037 [INFO] __main__: {'question': 'What is the purpose of using an ORM with PostgreSQL?'}
+2026-05-06 17:24:44,037 [INFO] __main__: {'question': 'How do you optimize the performance of a Docker container?'}
+2026-05-06 17:24:44,037 [INFO] __main__: {'question': 'How do you implement authentication in a FastAPI application using PostgreSQL as the database?'}
+2026-05-06 17:24:44,037 [INFO] __main__: DSA question
+2026-05-06 17:24:44,037 [INFO] tasks.q_generator: [QuestionGenerator] Generating DSA question (skills=4, topic=arrays)
+2026-05-06 17:24:44,755 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:24:44,758 [INFO] __main__: {'title': 'Container With Most Water', 'prompt': 'Given an array of non-negative integers representing the height of lines on a chart, find the maximum area that can be trapped between two lines. The area between two lines is calculated as the minimum height of the two lines multiplied by the distance between them.', 'constraints': None, 'examples': [{'input': '[1,8,6,2,5,4,8,3,7]', 'output': '49', 'explanation': None}, {'input': '[1,1]', 'output': '1', 'explanation': None}], 'sample_cases': [{'input': '[4,3,2,1,4]', 'output': '16', 'explanation': None}, {'input': '[1,2,1]', 'output': '2', 'explanation': None}]}
+2026-05-06 17:24:44,758 [INFO] __main__: SQL question
+2026-05-06 17:24:44,758 [INFO] tasks.q_generator: [QuestionGenerator] Generating SQL question (skills=4, topic=joins)
+2026-05-06 17:24:45,892 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:24:45,895 [INFO] __main__: {'title': 'Employee Department Join', 'prompt': 'Write a SQL query to retrieve the names of all employees along with their department names. Assume the employees table has columns id, name, and department_id, and the departments table has columns id and name.', 'schema': [{'name': 'employees', 'columns': ['id', 'name', 'department_id']}, {'name': 'departments', 'columns': ['id', 'name']}], 'examples': [{'input': 'SELECT * FROM employees', 'output': "[{id: 1, name: 'John', department_id: 1}, {id: 2, name: 'Alice', department_id: 2}]"}, {'input': 'SELECT * FROM departments', 'output': "[{id: 1, name: 'Sales'}, {id: 2, name: 'Marketing'}]"}], 'sample_cases': [{'input': 'SELECT e.name, d.name FROM employees e JOIN departments d ON e.department_id = d.id', 'output': "[{name: 'John', name: 'Sales'}, {name: 'Alice', name: 'Marketing'}]"}]}

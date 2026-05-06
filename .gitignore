@@ -17,4 +17,7 @@ build/
 Thumbs.db
 
 # others
-gemini-live-genai-python-sdk/
+gemini-live-genai-python-sdk/4
+
+tests/logs
+

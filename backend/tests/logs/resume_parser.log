@@ -1,0 +1,9 @@
+2026-05-06 17:23:40,618 [INFO] __main__: Starting extraction
+2026-05-06 17:23:40,658 [INFO] instructor.auto_client: Initializing groq provider with model llama-3.3-70b-versatile
+2026-05-06 17:23:40,686 [INFO] instructor.auto_client: Client initialized
+2026-05-06 17:23:40,686 [INFO] tasks.resume_parser: [ResumeJDMatcher] Matching skills (resume=4142 chars, jd=307 chars)
+2026-05-06 17:23:41,681 [INFO] httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-05-06 17:23:41,689 [INFO] __main__: Extraction results
+2026-05-06 17:23:41,689 [INFO] __main__: {'skill': 'Python', 'match_level': 'high'}
+2026-05-06 17:23:41,689 [INFO] __main__: {'skill': 'web development', 'match_level': 'medium'}
+2026-05-06 17:23:41,689 [INFO] __main__: {'skill': 'cloud platforms', 'match_level': 'medium'}

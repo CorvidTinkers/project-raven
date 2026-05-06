@@ -1,23 +1,24 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.venv/
+# dependencies
+node_modules
+.next
+out
+dist
+build
 .env
-
-# Node
-node_modules/
-.next/
-dist/
-build/
-
-# OS
+.env.local
 .DS_Store
 Thumbs.db
 
 # others
-gemini-live-genai-python-sdk/4
-
+venv/
+.venv/
+gemini-live-genai-python-sdk/
+ai-interview-main/
 tests/logs
+
+.python-version
+*/__pycache__/
+**/__pycache__
+
+*.log
 

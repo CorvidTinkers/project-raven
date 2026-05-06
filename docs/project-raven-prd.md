@@ -815,3 +815,27 @@ User/React                  FastAPI (LangGraph)           Gemini (Live API)
 1. **No Docker/Judge0 bottlenecks:** Code evaluation is done via LLM (Gemini 1.5 Flash), which is practically instant and won't crash if the user misses a semicolon.
 2. **State is ephemeral:** MemorySaver ensures that if you mess up a demo run, you just refresh the page and restart the FastAPI server, and it's a completely clean slate.
 3. **Strict AI Guardrails:** By injecting hidden system commands (`[SYSTEM INSTRUCTION: Acknowledge the answer and immediately call advance_stage]`), the AI will not ramble or get stuck in an endless loop of follow-up questions.
+
+---
+
+## 🛠️ May 2026 SDK Implementation Details
+
+### Native Audio & Vertex AI Integration
+To leverage **GCP Credits** and ensure high-fidelity voice interaction with the `gemini-live-2.5-flash-native-audio` model:
+- **Initialization**: Use `genai.Client(vertexai=True, project=project_id)`.
+- **Streaming**: Use `session.send(input=chunk)` for 16kHz PCM bytes.
+- **Barge-in**: Listen for `message.server_content.interrupted` to immediately flush frontend buffers.
+
+### Future Phase Breakdown
+
+| Component | Phase 1 (MVP) | Phase 2 (Technical Interview) |
+| :--- | :--- | :--- |
+| **State** | Hardcoded Node Transitions | LangGraph Dynamic Pathing |
+| **Context** | Fixed System Prompt | Summarize & Swap (Sliding Window) |
+| **Grading** | Transcription logging | LLM-as-a-Judge for DSA/SQL |
+| **UI** | Basic Transcript View | Monaco Editor + Radar Charts |
+
+### Critical "UI-Ready" Signal Pattern
+To avoid the AI speaking about a code editor before it appears, the system follows a **Handshake Protocol**:
+1. Frontend sends `{"ui_ready": "node_name"}` once the component mounts.
+2. Backend intercepts this and calls `inject_context()` to steer the AI turn.

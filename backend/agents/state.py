@@ -20,6 +20,7 @@ class InterviewState(TypedDict):
     code_grade: Optional[dict]
     ui_view: str  # "avatar", "skills", "monaco", "report"
     error_message: Optional[str]  # For error state
+    context_summary: Optional[str]  # For sliding window summarization
 
 # Valid stages for type safety
 VALID_STAGES = {"INITIALIZING", "PROCESSING", "INTRO", "EXPERIENCE", "DSA", "SQL", "REPORT", "ERROR"}

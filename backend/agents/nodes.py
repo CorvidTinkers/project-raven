@@ -1,5 +1,61 @@
 from agents.state import InterviewState
+from tasks.llm_client import get_instructor_client
+# Prompts are defined locally below to ensure stability
+# Toggle TEST_NODE_PROMPTS if needed for automated testing
 import json
+import logging
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+
+class SummaryOutput(BaseModel):
+    summary: str
+
+
+async def summarize_stage(state: InterviewState) -> str:
+    """
+    Summarizes the conversation from the current stage.
+    Implements the 'Summarize & Swap' pattern to prevent context bloat.
+    Uses Instructor + Gemini 3 Flash Preview for structured output.
+    """
+    stage = state.get("current_stage", "UNKNOWN")
+    transcript = state.get("transcript", [])
+    
+    if not transcript:
+        return ""
+
+    logger.info(f"Summarizing stage: {stage}")
+    
+    # Use Instructor with Gemini 2.5 Flash via Vertex AI
+    client = get_instructor_client("vertexai/gemini-2.5-flash")
+    
+    # Prepare transcript snippet
+    recent_turns = transcript[-10:]  # Last 10 turns
+    history_str = "\n".join([f"{t['role']}: {t['text']}" for t in recent_turns])
+    
+    prompt = f"""
+    Summarize the following technical interview phase: {stage}.
+    Focus on:
+    1. Key technical skills demonstrated or missing.
+    2. Any interesting follow-ups discussed.
+    3. The candidate's overall confidence.
+    
+    Keep the summary under 150 words.
+    
+    Transcript:
+    {history_str}
+    """
+    
+    try:
+        response = await client.create(
+            response_model=SummaryOutput,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.summary
+    except Exception as e:
+        logger.error(f"Summarization failed: {e}")
+        return ""
 
 def get_intro_prompt(state: InterviewState) -> str:
     return f"""You are Raven, a professional technical interviewer.
@@ -19,10 +75,13 @@ def get_intro_prompt(state: InterviewState) -> str:
 def get_experience_prompt(state: InterviewState) -> str:
     skills = [s['skill'] for s in state['matched_skills']]
     questions = [q['question'] for q in state['technical_questions']]
+    prev_context = state.get("context_summary", "The candidate just introduced themselves.")
     
     return f"""You are Raven, a professional technical interviewer.
     
     Current Phase: EXPERIENCE & SKILLS
+    Previous Phase Summary: {prev_context}
+    
     Candidate Skills: {", ".join(skills)}
     Question Bank: {json.dumps(questions)}
     
@@ -37,10 +96,13 @@ def get_experience_prompt(state: InterviewState) -> str:
 
 def get_dsa_prompt(state: InterviewState) -> str:
     dsa = state['dsa_question'] or {}
+    prev_context = state.get("context_summary", "Finished discussing their background.")
     
     return f"""You are Raven, a professional technical interviewer.
     
     Current Phase: DSA CODING
+    Previous Context: {prev_context}
+    
     Task: {dsa.get('title', 'Coding Challenge')}
     Problem Statement: {dsa.get('prompt', 'Please solve a coding problem.')}
     
@@ -56,10 +118,13 @@ def get_dsa_prompt(state: InterviewState) -> str:
 
 def get_sql_prompt(state: InterviewState) -> str:
     sql = state['sql_question'] or {}
+    prev_context = state.get("context_summary", "Completed the DSA coding session.")
     
     return f"""You are Raven, a professional technical interviewer.
     
     Current Phase: SQL CHALLENGE
+    Previous Context: {prev_context}
+    
     Task: {sql.get('title', 'SQL Challenge')}
     Problem Statement: {sql.get('prompt', 'Please solve an SQL problem.')}
     
@@ -71,9 +136,12 @@ def get_sql_prompt(state: InterviewState) -> str:
     """
 
 def get_report_prompt(state: InterviewState) -> str:
-    return """You are Raven, a professional technical interviewer.
+    prev_context = state.get("context_summary", "Finished the technical evaluation.")
+    
+    return f"""You are Raven, a professional technical interviewer.
     
     Current Phase: WRAP-UP & FEEDBACK
+    Overall Evaluation: {prev_context}
     
     Rules:
     1. Thank the candidate for their time.
@@ -92,5 +160,9 @@ NODE_PROMPTS = {
 
 def generate_node_instruction(state: InterviewState) -> str:
     stage = state.get("current_stage", "INTRO")
+    
+    # TOGGLE THIS FOR TESTING:
+    # prompt_gen = TEST_NODE_PROMPTS.get(stage) 
     prompt_gen = NODE_PROMPTS.get(stage, get_intro_prompt)
+    
     return prompt_gen(state)

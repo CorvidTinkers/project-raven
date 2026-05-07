@@ -54,7 +54,7 @@ class SqlExample(BaseModel):
 class SqlQuestion(BaseModel):
 	title: str
 	prompt: str
-	schema: list[SqlTable]
+	sql_schema: list[SqlTable]
 	examples: list[SqlExample]
 	sample_cases: list[SqlExample]
 

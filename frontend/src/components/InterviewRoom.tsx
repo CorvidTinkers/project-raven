@@ -1,207 +1,318 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useAudio } from '../hooks/useAudio';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { useVoiceWebSocket } from '../hooks/useVoiceWebSocket';
 import VoiceVisualizer from './VoiceVisualizer';
+import CodeEditor from './CodeEditor';
+import SkillsView from './SkillsView';
+import ReportView from './ReportView';
+import { 
+  AlertCircle, Loader2, Terminal, 
+  Briefcase, Mic, MicOff, Volume2, VolumeX, 
+  ChevronRight, LayoutDashboard
+} from 'lucide-react';
 
 const InterviewRoom: React.FC = () => {
-  // State
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [isPreGenerating, setIsPreGenerating] = useState(false);
-  const [currentView, setCurrentView] = useState('avatar'); // avatar, monaco, report
+  const [currentView, setCurrentView] = useState('avatar'); 
+  const [currentStage, setCurrentStage] = useState('INTRO');
+  const [matchedSkills, setMatchedSkills] = useState<any[]>([]);
+  const [codeGrade, setCodeGrade] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [jdText, setJdText] = useState('Seeking a Software Engineer to build agentic workflows with LangGraph and Gemini.');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [isMicMuted, setIsMicMuted] = useState(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [micActive, setMicActive] = useState(false);
   
-  const { startMic, stopMic, playChunk, stopAllAudio } = useAudio();
-  
-  const isMicMutedRef = useRef(isMicMuted);
-  const isSpeakerMutedRef = useRef(isSpeakerMuted);
-  const isConnectedRef = useRef(false);
-  const sendAudioRef = useRef<((data: string) => void) | null>(null);
-  const sendUIReadyRef = useRef<((node: string) => void) | null>(null);
-  
-  useEffect(() => {
-    isMicMutedRef.current = isMicMuted;
-  }, [isMicMuted]);
-  
-  useEffect(() => {
-    isSpeakerMutedRef.current = isSpeakerMuted;
-  }, [isSpeakerMuted]);
-  
-  // Dynamic WebSocket URL
-  const wsUrl = candidateId 
-    ? `ws://127.0.0.1:8000/ws/interview?candidate_id=${candidateId}` 
-    : '';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
-  const wsOptions = React.useMemo(() => ({
-    onAudioChunk: (base64: string) => {
-      if (!isSpeakerMutedRef.current) {
-        playChunk(base64);
-      }
+  const { 
+    status, 
+    connect, 
+    disconnect, 
+    toggleMute, 
+    isMuted, 
+    inputAmplitude, 
+    outputAmplitude,
+    sendUIReady,
+    sendCode,
+    errorMessage 
+  } = useVoiceWebSocket({
+    onUIEvent: (view) => {
+      setCurrentView(view);
+      // Wait for component to mount/render before sending handshake
+      setTimeout(() => sendUIReady(view), 200);
     },
     onInterrupted: () => {
-      stopAllAudio();
-    },
-    onUIEvent: (view: string) => {
-      setCurrentView(view);
-      // Wait a moment for UI to mount, then signal ready
-      setTimeout(() => {
-        if (sendUIReadyRef.current) {
-          sendUIReadyRef.current(view);
-        }
-      }, 500);
-    },
-    onOpen: () => {
-      isConnectedRef.current = true;
-      setIsConnecting(false);
-      setMicActive(true);
-      startMic((base64) => {
-        if (!isMicMutedRef.current && isConnectedRef.current && sendAudioRef.current) {
-          sendAudioRef.current(base64);
-        }
-      });
-    },
-    onClose: () => {
-      isConnectedRef.current = false;
-      setIsConnecting(false);
-      setMicActive(false);
-      stopMic();
-      stopAllAudio();
-    },
-    onError: (err: any) => {
-      console.error('WebSocket Error:', err);
-      isConnectedRef.current = false;
-      setIsConnecting(false);
-      setMicActive(false);
+      // Any specific UI logic for interruption (e.g. visual feedback)
     }
-  }), [playChunk, stopAllAudio, stopMic, startMic]);
+  });
 
-  const { connect, disconnect, isConnected, sendAudio, sendUIReady } = useWebSocket(wsUrl, wsOptions);
-  
+  // Sync errorMessage from hook to local error state
   useEffect(() => {
-    sendAudioRef.current = sendAudio;
-    sendUIReadyRef.current = sendUIReady;
-  }, [sendAudio, sendUIReady]);
+    if (errorMessage) setError(errorMessage);
+  }, [errorMessage]);
 
-  // Handle Resume Upload (Simplified for demo)
+  // Polling for status
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (candidateId && isPreGenerating) {
+      const pollStatus = async () => {
+        try {
+          const res = await fetch(`${backendUrl}/status/${candidateId}`);
+          const data = await res.json();
+          if (data.status === 'ready' || data.current_stage === 'REPORT') {
+            setIsPreGenerating(false);
+            setCurrentStage(data.current_stage);
+            setMatchedSkills(data.matched_skills || []);
+            if (data.code_grade) setCodeGrade(data.code_grade);
+          } else if (data.status === 'error') {
+            setIsPreGenerating(false);
+            setError(data.error_message || 'Cognitive analysis failed');
+          }
+        } catch (e) {
+          console.error('Poll err', e);
+        }
+      };
+      interval = setInterval(pollStatus, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [candidateId, isPreGenerating, backendUrl]);
+
   const handleUpload = async () => {
+    if (!resumeFile && !candidateId) {
+      setError('Please select a resume file (PDF) first.');
+      return;
+    }
+    setError(null);
     setIsPreGenerating(true);
     try {
       const formData = new FormData();
-      formData.append('jd_text', 'Seeking a Senior Python Developer with FastAPI and LangChain experience.');
-      formData.append('text', 'Candidate with 5 years experience in Python, FastAPI, and building LLM agents.');
+      formData.append('jd_text', jdText);
+      if (resumeFile) {
+        formData.append('file', resumeFile);
+      } else {
+        formData.append('text', 'Experienced developer with AI background.');
+      }
 
-      const response = await fetch('http://127.0.0.1:8000/resume/analyze_with_jd', {
+      const response = await fetch(`${backendUrl}/resume/analyze_with_jd`, {
         method: 'POST',
         body: formData,
       });
       const data = await response.json();
       setCandidateId(data.candidate_id);
-      
-      // For demo, we just wait 3 seconds for pre-gen
-      setTimeout(() => {
-        setIsPreGenerating(false);
-      }, 3000);
     } catch (e) {
-      console.error('Upload failed', e);
+      setError('Neural node offline. Check backend status.');
       setIsPreGenerating(false);
     }
   };
 
   const handleToggleConnection = useCallback(() => {
-    if (isConnected) {
+    if (status === 'connected' || status === 'listening' || status === 'speaking') {
       disconnect();
-      setMicActive(false);
-    } else {
-      setIsConnecting(true);
-      connect();
+    } else if (candidateId) {
+      connect(candidateId);
     }
-  }, [isConnected, disconnect, connect]);
+  }, [status, disconnect, connect, candidateId]);
+
+  const isConnected = status !== 'idle' && status !== 'connecting' && status !== 'error';
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-8">
-      <div className="w-full max-w-4xl bg-slate-800 rounded-3xl p-12 shadow-2xl border border-slate-700 flex flex-col items-center gap-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Project Raven
-        </h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] text-slate-200 p-4 md:p-8 font-sans selection:bg-blue-500/30">
+      <div className={`w-full max-w-5xl bg-[#0f172a]/80 backdrop-blur-3xl rounded-[3rem] p-8 md:p-14 shadow-[0_32px_128px_-24px_rgba(0,0,0,0.8)] border border-slate-800/50 flex flex-col items-center transition-all duration-1000 ${currentView === 'monaco' ? 'max-w-6xl' : ''}`}>
         
-        {/* Step 1: Upload */}
-        {!candidateId && !isPreGenerating && (
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-slate-300">Welcome! Please upload your resume to begin.</p>
-            <button 
-              onClick={handleUpload}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-full font-semibold transition-all"
-            >
-              Analyze Resume (Demo Mode)
-            </button>
-          </div>
-        )}
-
-        {/* Step 2: Pre-generating */}
-        {isPreGenerating && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-blue-400 animate-pulse">Building your interview profile...</p>
-          </div>
-        )}
-
-        {/* Step 3: Interview Room */}
-        {candidateId && !isPreGenerating && (
-          <>
-            <div className="flex gap-4 items-center">
-              <span className="px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-mono">
-                Session: {candidateId.slice(0, 8)}
-              </span>
-              <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-mono uppercase">
-                View: {currentView}
-              </span>
+        {/* Header */}
+        <div className="flex items-center justify-between w-full mb-16">
+          <div className="flex items-center gap-4 group cursor-default">
+            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-600/30 group-hover:scale-110 transition-transform">
+              <LayoutDashboard size={24} className="text-white" />
             </div>
-
-            <div className="relative w-48 h-48 flex items-center justify-center">
-              <VoiceVisualizer isActive={micActive} isMuted={isMicMuted} />
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-white uppercase italic">RAVEN</h1>
+              <div className="h-0.5 w-8 bg-blue-600 rounded-full" />
             </div>
-
-            {currentView === 'monaco' && (
-              <div className="w-full h-64 bg-black rounded-xl border border-slate-700 p-4 font-mono text-sm text-green-400 overflow-hidden relative">
-                <div className="absolute top-2 right-4 text-xs text-slate-500 uppercase">Monaco Editor Mockup</div>
-                <p># Solve the Two Sum problem</p>
-                <p>def solve(nums, target):</p>
-                <p className="animate-pulse">|</p>
+          </div>
+          
+          {candidateId && (
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => <div key={i} className="w-6 h-6 rounded-full border-2 border-[#0f172a] bg-slate-800" />)}
               </div>
-            )}
+              <div className="h-4 w-px bg-slate-800 mx-1" />
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{currentStage}</span>
+                <span className="text-[10px] font-bold text-slate-500 font-mono">ID: {candidateId.slice(0, 8)}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
-            <div className="flex flex-wrap justify-center gap-6">
-              <button
-                onClick={handleToggleConnection}
-                disabled={isConnecting}
-                className={`px-8 py-4 rounded-full font-semibold transition-all shadow-lg ${
-                  isConnected ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+        {/* Errors */}
+        {error && (
+          <div className="w-full mb-10 p-5 bg-red-500/5 border border-red-500/20 rounded-[2rem] flex items-center gap-4 text-red-400 text-sm animate-in slide-in-from-top-4 duration-500">
+            <AlertCircle size={22} className="shrink-0" />
+            <p className="font-medium">{error}</p>
+          </div>
+        )}
+        
+        <div className="w-full flex flex-col items-center gap-14 flex-1">
+          
+          {!candidateId && !isPreGenerating && (
+            <div className="flex flex-col items-center gap-10 py-8 text-center max-w-2xl w-full">
+              <div className="space-y-4">
+                <h2 className="text-5xl font-black text-white leading-tight uppercase italic tracking-tighter">Initialize <span className="text-blue-500">Raven</span></h2>
+                <p className="text-slate-400 text-lg font-medium leading-relaxed">Upload your resume and job description to begin the assessment.</p>
+              </div>
+              
+              <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col items-start gap-3">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Job Description</span>
+                  <textarea 
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                    placeholder="Paste the Job Description here..."
+                    className="w-full h-40 bg-slate-900/50 border border-slate-800 rounded-3xl p-5 text-sm text-slate-300 focus:border-blue-500 outline-none transition-all resize-none"
+                  />
+                </div>
+
+                <div className="flex flex-col items-start gap-3">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Candidate Resume (PDF)</span>
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full h-40 border-2 border-dashed rounded-3xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
+                      resumeFile ? 'bg-blue-500/10 border-blue-500' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                      className="hidden" 
+                      accept=".pdf"
+                    />
+                    <Briefcase size={32} className={resumeFile ? 'text-blue-400' : 'text-slate-600'} />
+                    <span className={`text-xs font-bold ${resumeFile ? 'text-blue-400' : 'text-slate-500'}`}>
+                      {resumeFile ? resumeFile.name : 'Click to select PDF'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleUpload}
+                className="group relative px-14 py-6 bg-blue-600 hover:bg-blue-700 rounded-3xl font-black text-xl text-white transition-all shadow-2xl shadow-blue-600/30 active:scale-95 mt-4"
               >
-                {isConnecting ? 'Connecting...' : isConnected ? 'End Interview' : 'Start Interview'}
+                <div className="flex items-center gap-3">
+                  Start Analysis <ChevronRight size={20} />
+                </div>
               </button>
+            </div>
+          )}
 
-              {isConnected && (
+          {isPreGenerating && (
+            <div className="flex flex-col items-center gap-8 py-24">
+              <div className="relative h-20 w-20">
+                <Loader2 size={80} className="text-blue-500 animate-spin" />
+                <div className="absolute inset-0 blur-3xl bg-blue-500/30 rounded-full animate-pulse" />
+              </div>
+              <div className="text-center space-y-3">
+                <p className="text-2xl font-black text-white uppercase tracking-tighter">Initializing Agent...</p>
+                <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Scanning skillset with Gemini 3 Flash</p>
+              </div>
+            </div>
+          )}
+
+          {candidateId && !isPreGenerating && (
+            <div className="w-full flex flex-col items-center gap-14">
+              
+              {currentView === 'avatar' && (
+                <div className="flex flex-col items-center gap-12 w-full animate-in fade-in duration-1000">
+                  <div className="relative w-72 h-72 md:w-96 md:h-96 flex items-center justify-center">
+                    {/* Visualizer tied to hook amplitudes */}
+                    <VoiceVisualizer 
+                      isActive={status === 'listening' || status === 'speaking'} 
+                      isMuted={isMuted} 
+                      amplitude={status === 'speaking' ? outputAmplitude : inputAmplitude}
+                    />
+                  </div>
+                  {matchedSkills.length > 0 && <SkillsView skills={matchedSkills} />}
+                </div>
+              )}
+
+              {currentView === 'monaco' && (
+                <div className="w-full flex flex-col items-center gap-10 animate-in zoom-in-95 duration-700">
+                  <div className="w-full h-[550px]">
+                    <CodeEditor 
+                      language={currentStage === 'SQL' ? 'sql' : 'python'}
+                      defaultCode={currentStage === 'SQL' ? '-- ARCHITECT YOUR QUERY\n' : '# DEFINE YOUR ALGORITHM\n'}
+                      onSubmit={(code) => sendCode(code)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-4 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] bg-slate-900/50 px-6 py-2 rounded-full border border-slate-800">
+                    <Terminal size={14} className="text-blue-500" />
+                    <span>Neural Feedback Buffer: Active</span>
+                  </div>
+                </div>
+              )}
+
+              {currentView === 'report' && (
+                <ReportView grade={codeGrade} />
+              )}
+
+              {/* Controls */}
+              <div className="flex flex-wrap justify-center gap-6 pt-12 border-t border-slate-800/50 w-full">
                 <button
-                  onClick={() => setIsMicMuted(!isMicMuted)}
-                  className={`p-4 rounded-full transition-all border ${
-                    isMicMuted ? 'bg-slate-700 border-red-500 text-red-500' : 'bg-slate-700 border-slate-600'
+                  onClick={handleToggleConnection}
+                  disabled={status === 'connecting'}
+                  className={`flex items-center gap-4 px-12 py-5 rounded-[2rem] font-black uppercase tracking-tighter transition-all shadow-2xl active:scale-95 ${
+                    isConnected 
+                      ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white' 
+                      : 'bg-white text-black hover:bg-blue-600 hover:text-white shadow-blue-600/10'
                   }`}
                 >
-                  {isMicMuted ? 'Mic Muted' : 'Mic Active'}
+                  {status === 'connecting' ? (
+                    <><Loader2 size={20} className="animate-spin" /> Link Loading</>
+                  ) : isConnected ? (
+                    'Abort Session'
+                  ) : (
+                    'Initialize Link'
+                  )}
                 </button>
-              )}
+
+                {isConnected && (
+                  <div className="flex gap-4">
+                    <button
+                      onClick={toggleMute}
+                      className={`p-5 rounded-[2rem] transition-all border shadow-xl ${
+                        isMuted 
+                          ? 'bg-red-500/10 border-red-500/20 text-red-500' 
+                          : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-blue-500 hover:text-blue-500'
+                      }`}
+                    >
+                      {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
+                    </button>
+                    <button
+                      onClick={() => setIsSpeakerMuted(!isSpeakerMuted)}
+                      className={`p-5 rounded-[2rem] transition-all border shadow-xl ${
+                        isSpeakerMuted 
+                          ? 'bg-red-500/10 border-red-500/20 text-red-500' 
+                          : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-blue-500 hover:text-blue-500'
+                      }`}
+                    >
+                      {isSpeakerMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 export default InterviewRoom;
+

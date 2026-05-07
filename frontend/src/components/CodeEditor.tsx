@@ -9,13 +9,15 @@ interface CodeEditorProps {
   defaultCode?: string;
   onSubmit?: (code: string) => void;
   readOnly?: boolean;
+  isGrading?: boolean;
 }
 
-export default function CodeEditor({ 
-  language = 'python', 
+export default function CodeEditor({
+  language = 'python',
   defaultCode = '',
   onSubmit,
-  readOnly = false 
+  readOnly = false,
+  isGrading = false,
 }: CodeEditorProps) {
   const [code, setCode] = useState(defaultCode);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -46,14 +48,18 @@ export default function CodeEditor({
         {!readOnly && (
           <button
             onClick={handleSubmit}
-            disabled={isSubmitted}
+            disabled={isSubmitted || isGrading}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-semibold transition-all ${
-              isSubmitted 
-                ? 'bg-green-600/20 text-green-400 cursor-default' 
+              isGrading
+                ? 'bg-yellow-600/20 text-yellow-400 cursor-default'
+                : isSubmitted
+                ? 'bg-green-600/20 text-green-400 cursor-default'
                 : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg active:scale-95'
             }`}
           >
-            {isSubmitted ? (
+            {isGrading ? (
+              <><Send size={16} className="animate-pulse" /> Reviewing...</>
+            ) : isSubmitted ? (
               <><CheckCircle size={16} /> Submitted</>
             ) : (
               <><Send size={16} /> Submit Solution</>
@@ -84,9 +90,14 @@ export default function CodeEditor({
         />
       </div>
       
-      {isSubmitted && (
+      {isGrading && (
+        <div className="px-4 py-2 bg-yellow-900/20 border-t border-yellow-900/30 text-yellow-400 text-xs font-mono animate-pulse">
+          System: Solution captured. Raven is analysing your code...
+        </div>
+      )}
+      {isSubmitted && !isGrading && (
         <div className="px-4 py-2 bg-green-900/20 border-t border-green-900/30 text-green-400 text-xs font-mono">
-          System: Solution captured. Raven is reviewing your code...
+          System: Grading complete. Raven will provide verbal feedback.
         </div>
       )}
     </div>

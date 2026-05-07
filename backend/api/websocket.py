@@ -1,183 +1,243 @@
+"""
+WebSocket router for Project Raven — voice interview endpoint.
+
+Responsibilities:
+  - Accept, validate, and deduplicate WS connections
+  - Receive binary PCM audio from browser → queue → Gemini
+  - Receive JSON control messages from browser → dispatch to handlers
+  - Forward binary PCM audio from Gemini → browser
+  - Forward JSON state events from handlers → browser
+
+NOT responsible for:
+  - LangGraph state transitions (→ api/handlers.py)
+  - Prompt generation (→ agents/nodes.py)
+  - Code grading (→ tasks/code_grader.py via handlers.py)
+"""
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import os
 from typing import Dict, Set
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from services.gemini import GeminiLive
+
 from agents.state import store
 from agents.nodes import generate_node_instruction
+from api.handlers import handle_advance_stage, handle_submit_code
+from services.gemini import GeminiLive
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Registry of active sessions to prevent race conditions and double-mounts
+# ── Session registries (deduplication guards) ────────────────────────────────
 _active_sessions: Dict[str, GeminiLive] = {}
 _connecting_sessions: Set[str] = set()
 
+# ── ui_ready event store (cross-coroutine signalling) ───────────────────────
+_ui_ready_events: Dict[str, asyncio.Event] = {}
+
+
 @router.websocket("/ws/interview")
-async def interview_websocket(websocket: WebSocket, candidate_id: str = Query(...)):
+async def interview_websocket(
+    websocket: WebSocket,
+    candidate_id: str = Query(...),
+):
     """
-    Project Raven WebSocket: Orchestrates the live voice session with LangGraph.
+    Main voice interview WebSocket.
+
+    URL: ws://host/ws/interview?candidate_id=<uuid>
+
+    Binary frames: raw PCM 16-bit 16kHz mono (mic → Gemini)
+    Binary frames: raw PCM 16-bit 24kHz mono (Gemini → speaker)
+
+    Text frames (browser → server):
+      {type: "ping"}
+      {type: "ui_ready", node: "DSA"}
+      {type: "submit_code", code: "..."}  ← fallback if tool call not used
+
+    Text frames (server → browser):
+      {type: "connected"}
+      {type: "ui_event", view: "monaco", stage: "DSA"}
+      {type: "code_received", stage: "DSA"}
+      {type: "interrupted"}
+      {type: "error", message: "..."}
     """
-    logger.info(f"New connection request for candidate: {candidate_id}")
-    
-    # 1. Load Pre-generated State
+    logger.info(f"[WS] Connection request: candidate={candidate_id[:8]}")
+
+    # ── 1. Load and validate state ────────────────────────────────────────────
     state = store.get(candidate_id)
     if not state:
-        logger.error(f"Candidate session {candidate_id} not found in store.")
         await websocket.accept()
-        await websocket.send_json({"type": "error", "message": "Session not found. Please upload resume again."})
+        await _send_json(websocket, {"type": "error", "message": "Session not found. Upload resume first."})
         await websocket.close(code=4401)
         return
-    
-    # Check if pre-generation is complete
-    status = state.get("status")
-    if status != "ready":
-        logger.error(f"Candidate session not ready. Status: {status}")
+
+    if state.get("status") != "ready":
         await websocket.accept()
-        await websocket.send_json({"type": "error", "message": f"Interview not ready. Status: {status}. Please wait."})
+        await _send_json(websocket, {
+            "type": "error",
+            "message": f"Session not ready (status={state.get('status')}). Please wait.",
+        })
         await websocket.close(code=4402)
         return
 
-    # 2. Deduplication Guard
+    # ── 2. Deduplication guard ────────────────────────────────────────────────
     if candidate_id in _connecting_sessions:
-        logger.warning(f"Setup already in progress for {candidate_id} - rejecting duplicate")
         await websocket.accept()
-        await websocket.send_json({"type": "error", "message": "Connection already in progress."})
+        await _send_json(websocket, {"type": "error", "message": "Connection already in progress."})
         await websocket.close(code=4409)
         return
 
     if candidate_id in _active_sessions:
-        logger.info(f"Replacing existing session for {candidate_id}")
-        old_session = _active_sessions.pop(candidate_id)
-        await old_session.close()
+        logger.info(f"[WS] Replacing existing session for {candidate_id[:8]}")
+        old = _active_sessions.pop(candidate_id)
+        await old.close()
 
     _connecting_sessions.add(candidate_id)
-    
     await websocket.accept()
-    logger.info(f"WebSocket accepted for {candidate_id}")
+    logger.info(f"[WS] Accepted: {candidate_id[:8]}")
 
-    # 3. Setup Gemini
-    api_key = os.getenv("GEMINI_API_KEY")
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    gemini_client = GeminiLive(api_key=api_key, project_id=project_id)
-    
-    audio_input_queue = asyncio.Queue()
+    # ── 3. Build Gemini client ────────────────────────────────────────────────
+    gemini = GeminiLive(
+        api_key=os.getenv("GEMINI_API_KEY"),
+        project_id=os.getenv("GOOGLE_CLOUD_PROJECT"),
+    )
+    audio_input_queue: asyncio.Queue[bytes] = asyncio.Queue()
 
-    # Callback Helpers
-    async def audio_output_callback(audio_data):
+    # ── 4. Define I/O callbacks ───────────────────────────────────────────────
+
+    async def on_audio_out(pcm: bytes) -> None:
         try:
-            await websocket.send_bytes(audio_data)
+            await websocket.send_bytes(pcm)
         except Exception:
             pass
 
-    async def interrupt_callback():
-        try:
-            await websocket.send_json({"type": "interrupted"})
-        except Exception:
-            pass
+    async def on_interrupted() -> None:
+        await _send_json(websocket, {"type": "interrupted"})
 
-    async def handle_tool_call(call):
-        nonlocal state
+    async def on_tool_call(call) -> None:
         if call.name == "advance_stage":
-            next_node = call.args.get("next_node")
-            logger.info(f"Advancing to stage: {next_node}")
-            
-            from agents.graph import advance_stage
-            result = await advance_stage(candidate_id, next_node)
-            
-            ui_view = result.get("ui_view", "avatar")
-            state["current_stage"] = result.get("current_stage")
-            
-            # Send ui_event
-            await websocket.send_json({"type": "ui_event", "view": ui_view})
-            
-            # Update Gemini Instructions
-            new_instruction = generate_node_instruction(state)
-            await gemini_client.update_session(new_instruction)
-
+            await handle_advance_stage(
+                call=call,
+                candidate_id=candidate_id,
+                gemini_client=gemini,
+                send_to_client=lambda payload: _send_json(websocket, payload),
+                ui_ready_events=_ui_ready_events,
+            )
         elif call.name == "submit_code":
-            code = call.args.get("code")
-            logger.info(f"Code submitted: {len(code)} chars")
-            
-            current_stage = state.get("current_stage")
-            question = state.get("dsa_question") if current_stage == "DSA" else state.get("sql_question")
-            
-            if question:
-                from tasks.code_grader import CodeGrader
-                grader = CodeGrader()
-                grade_result = await grader.grade_solution(question, code)
-                state["code_submission"] = code
-                state["code_grade"] = grade_result
-                store.update(candidate_id=candidate_id, code_submission=code, code_grade=grade_result)
-                
-                feedback = f"Candidate's code has been graded. Score: {grade_result.get('grade', 'N/A')}/10. {grade_result.get('feedback', {}).get('summary', '')}"
-                await gemini_client.inject_context(feedback)
-            else:
-                state["code_submission"] = code
-                store.update(candidate_id=candidate_id, code_submission=code)
-                await gemini_client.inject_context("Candidate has submitted their code.")
+            await handle_submit_code(
+                call=call,
+                candidate_id=candidate_id,
+                gemini_client=gemini,
+                send_to_client=lambda payload: _send_json(websocket, payload),
+            )
+        else:
+            logger.warning(f"[WS] Unknown tool call: {call.name}")
 
-    # 4. Main Communication Loops
-    async def receive_from_client():
+    # ── 5. Start receive loop (browser → server) ──────────────────────────────
+
+    async def receive_loop() -> None:
         try:
             while True:
                 message = await websocket.receive()
-                
-                if "bytes" in message:
-                    # Direct PCM audio
+
+                if message.get("type") == "websocket.disconnect":
+                    break
+
+                # Binary: raw PCM mic audio
+                if "bytes" in message and message["bytes"]:
                     await audio_input_queue.put(message["bytes"])
-                
-                elif "text" in message:
-                    data = json.loads(message["text"])
+
+                # Text: JSON control
+                elif "text" in message and message["text"]:
+                    try:
+                        data = json.loads(message["text"])
+                    except json.JSONDecodeError:
+                        continue
+
                     msg_type = data.get("type")
-                    
+
                     if msg_type == "ping":
-                        await websocket.send_json({"type": "pong"})
-                    
+                        await _send_json(websocket, {"type": "pong"})
+
                     elif msg_type == "ui_ready":
-                        logger.info(f"UI Ready: {data.get('node')}")
-                        await gemini_client.inject_context(f"The candidate is now seeing the {data.get('node')} interface.")
-                    
+                        # Signal the handler that the UI component has mounted
+                        node = data.get("node", "")
+                        logger.info(f"[WS] ui_ready: {node}")
+                        event = _ui_ready_events.get(candidate_id)
+                        if event:
+                            event.set()
+
                     elif msg_type == "submit_code":
-                        # Client-side code submission (if not via tool call)
-                        await handle_tool_call(type('obj', (object,), {'name': 'submit_code', 'args': {'code': data.get('code')}}))
+                        # Client-side submission (fallback when tool call isn't used)
+                        code = data.get("code", "")
+                        # Wrap as a mock call object
+                        mock_call = _MockCall("submit_code", {"code": code})
+                        await handle_submit_code(
+                            call=mock_call,
+                            candidate_id=candidate_id,
+                            gemini_client=gemini,
+                            send_to_client=lambda payload: _send_json(websocket, payload),
+                        )
 
         except WebSocketDisconnect:
-            logger.info(f"Client disconnected: {candidate_id}")
-        except Exception as e:
-            logger.error(f"Error in receive_loop: {e}")
+            logger.info(f"[WS] Disconnected: {candidate_id[:8]}")
+        except Exception as exc:
+            logger.error(f"[WS] receive_loop error: {exc}")
 
-    receive_task = asyncio.create_task(receive_from_client())
+    receive_task = asyncio.create_task(receive_loop(), name=f"ws-recv-{candidate_id[:8]}")
 
+    # ── 6. Start Gemini session ───────────────────────────────────────────────
     try:
-        # Start Gemini session
         initial_instruction = generate_node_instruction(state)
-        
-        # Mark as active
-        _connecting_sessions.discard(candidate_id)
-        _active_sessions[candidate_id] = gemini_client
-        
-        await websocket.send_json({"type": "connected"})
 
-        await gemini_client.start_session(
+        # Mark as active (promote from connecting)
+        _connecting_sessions.discard(candidate_id)
+        _active_sessions[candidate_id] = gemini
+
+        await _send_json(websocket, {"type": "connected"})
+        logger.info(f"[WS] Starting Gemini session for {candidate_id[:8]}")
+
+        await gemini.start_session(
             initial_instruction=initial_instruction,
             audio_input_queue=audio_input_queue,
-            audio_output_callback=audio_output_callback,
-            interrupt_callback=interrupt_callback,
-            tool_call_callback=handle_tool_call,
-            candidate_id=candidate_id
+            audio_output_callback=on_audio_out,
+            interrupt_callback=on_interrupted,
+            tool_call_callback=on_tool_call,
+            candidate_id=candidate_id,
         )
-    except Exception as e:
-        logger.error(f"Gemini session error: {e}")
+
+    except Exception as exc:
+        logger.error(f"[WS] Gemini session error: {exc}", exc_info=True)
+        await _send_json(websocket, {"type": "error", "message": f"Session failed: {exc}"})
+
     finally:
         receive_task.cancel()
         _connecting_sessions.discard(candidate_id)
         _active_sessions.pop(candidate_id, None)
-        await gemini_client.close()
+        _ui_ready_events.pop(candidate_id, None)
+        await gemini.close()
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
+        logger.info(f"[WS] Session fully cleaned up: {candidate_id[:8]}")
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+async def _send_json(ws: WebSocket, payload: dict) -> None:
+    try:
+        await ws.send_text(json.dumps(payload))
+    except Exception:
+        pass
+
+
+class _MockCall:
+    """Wraps a client-side submission to look like a Gemini tool call."""
+    def __init__(self, name: str, args: dict):
+        self.name = name
+        self.args = args
+        self.id = "client-submit"

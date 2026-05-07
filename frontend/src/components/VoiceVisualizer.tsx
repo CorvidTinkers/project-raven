@@ -1,43 +1,104 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 
 interface VoiceVisualizerProps {
   isActive: boolean;
   isMuted: boolean;
   amplitude?: number;
+  isSpeaking?: boolean;
 }
 
-const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({ isActive, isMuted, amplitude = 0 }) => {
+// Pre-computed static offsets per bar — set once, never regenerated
+const BAR_COUNT = 14;
+const BAR_OFFSETS = Array.from({ length: BAR_COUNT }, (_, i) => {
+  // Sine wave base shape across bars — center bars taller
+  return 0.3 + Math.sin((i / (BAR_COUNT - 1)) * Math.PI) * 0.7;
+});
+
+const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
+  isActive,
+  isMuted,
+  amplitude = 0,
+  isSpeaking = false,
+}) => {
+  const scale = isActive && !isMuted ? 1 + amplitude * 0.3 : 1;
+
   return (
-    <div className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-300 ${
-      isActive 
-        ? isMuted ? 'bg-slate-700/50 scale-90' : 'bg-blue-500/10 scale-110 shadow-[0_0_50px_rgba(59,130,246,0.2)]'
-        : 'bg-slate-800'
-    }`}
-    style={{
-      transform: isActive && !isMuted ? `scale(${1 + amplitude * 0.5})` : undefined
-    }}>
-      <div className="flex items-center gap-1.5 h-16">
-        {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className={`w-1.5 rounded-full transition-all duration-75 ${
-              isActive && !isMuted 
-                ? 'bg-blue-400' 
-                : 'bg-slate-600'
-            }`}
-            style={{
-              height: isActive && !isMuted 
-                ? `${Math.max(15, amplitude * 100 * (0.5 + Math.random() * 0.5))}%` 
-                : '8px',
-            }}
-          />
-        ))}
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: '100%', height: '100%' }}
+    >
+      {/* Outer glow ring — only when speaking */}
+      {isSpeaking && !isMuted && (
+        <div
+          className="absolute rounded-full border border-blue-500/30 animate-ping"
+          style={{
+            width: '70%',
+            height: '70%',
+            animationDuration: '1.5s',
+          }}
+        />
+      )}
+
+      {/* Main orb */}
+      <div
+        className={`relative flex items-center justify-center rounded-full transition-all duration-200 ${
+          isActive && !isMuted
+            ? 'bg-blue-500/10 shadow-[0_0_60px_rgba(59,130,246,0.25)]'
+            : 'bg-slate-800/60'
+        }`}
+        style={{
+          width: '55%',
+          height: '55%',
+          transform: `scale(${scale})`,
+          transition: 'transform 80ms ease-out',
+        }}
+      >
+        {/* Waveform bars */}
+        <div className="flex items-center gap-1 h-14">
+          {BAR_OFFSETS.map((offset, i) => {
+            const barHeight = isActive && !isMuted
+              ? Math.max(12, amplitude * 100 * offset)
+              : 6;
+
+            return (
+              <div
+                key={i}
+                className={`rounded-full transition-all ${
+                  isActive && !isMuted ? 'bg-blue-400' : 'bg-slate-600'
+                }`}
+                style={{
+                  width: '3px',
+                  height: `${barHeight}%`,
+                  // CSS animation for idle state breathing
+                  animation: !isActive
+                    ? `breathe 2.${i % 4}s ease-in-out infinite alternate`
+                    : undefined,
+                  animationDelay: `${i * 80}ms`,
+                  transition: 'height 80ms ease-out',
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Muted indicator */}
+        {isMuted && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/60">
+            <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">Muted</span>
+          </div>
+        )}
       </div>
+
+      <style>{`
+        @keyframes breathe {
+          from { height: 6px; }
+          to { height: 18px; }
+        }
+      `}</style>
     </div>
   );
 };
-
 
 export default VoiceVisualizer;

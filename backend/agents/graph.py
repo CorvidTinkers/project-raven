@@ -1,102 +1,158 @@
-from langgraph.graph import StateGraph, START, END
-from agents.state import InterviewState, store
+"""
+LangGraph orchestration for Project Raven.
+
+Design decisions:
+  - MemorySaver: persists state in RAM per candidate_id (thread_id).
+  - Nodes are lightweight: they just return the stage + ui_view delta.
+    All heavy work (prompts, summarization) happens outside the graph.
+  - advance_stage() is the single public entry point called by the WS handler.
+  - Summarization runs as a background asyncio.Task — it does NOT block
+    the stage transition. The live Gemini session transitions immediately
+    with a bridge prompt; the summary is injected as a soft steer once done.
+"""
+from __future__ import annotations
+
+import asyncio
 import logging
+from typing import Optional
+
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+
+from agents.state import InterviewState, STAGE_TRANSITIONS, STAGE_UI_VIEW, store
 
 logger = logging.getLogger(__name__)
 
-# Stage transitions - only valid paths for the interview flow
-VALID_TRANSITIONS = {
-    "INTRO": ["EXPERIENCE"],
-    "EXPERIENCE": ["DSA"],
-    "DSA": ["SQL"],
-    "SQL": ["REPORT"],
-    "REPORT": [END]
-}
+# ── MemorySaver (one per process — survives for the demo lifecycle) ──────────
+_memory = MemorySaver()
 
-def validate_transition(current_stage: str, next_stage: str) -> str:
-    """Validate and return the next stage, enforcing strict flow."""
-    valid_next = VALID_TRANSITIONS.get(current_stage, [])
-    if next_stage in valid_next:
-        return next_stage
-    
-    logger.warning(f"Invalid transition attempted: {current_stage} -> {next_stage}. Falling back to default.")
-    return valid_next[0] if valid_next else current_stage
 
-def create_interview_graph():
+# ── Node functions ───────────────────────────────────────────────────────────
+# Nodes are intentionally minimal. They exist so LangGraph can checkpoint the
+# transition and enforce the stage sequence. All business logic is external.
+
+def _node(stage: str):
+    """Factory that creates a named node function for a given stage."""
+    def fn(state: InterviewState) -> dict:
+        logger.info(f"[Graph] Entering node: {stage}")
+        return {
+            "current_stage": stage,
+            "ui_view": STAGE_UI_VIEW[stage],
+        }
+    fn.__name__ = stage  # makes LangGraph logging readable
+    return fn
+
+
+# ── Build the graph ──────────────────────────────────────────────────────────
+def _build_graph() -> object:
+    wf = StateGraph(InterviewState)
+
+    for stage in ["INTRO", "EXPERIENCE", "DSA", "SQL", "REPORT"]:
+        wf.add_node(stage, _node(stage))
+
+    wf.add_edge(START, "INTRO")
+    wf.add_edge("INTRO",       "EXPERIENCE")
+    wf.add_edge("EXPERIENCE",  "DSA")
+    wf.add_edge("DSA",         "SQL")
+    wf.add_edge("SQL",         "REPORT")
+    wf.add_edge("REPORT",      END)
+
+    return wf.compile(checkpointer=_memory)
+
+
+_graph = _build_graph()
+
+
+# ── Public API ───────────────────────────────────────────────────────────────
+
+def _thread_config(candidate_id: str) -> dict:
+    return {"configurable": {"thread_id": candidate_id}}
+
+
+async def init_stage(candidate_id: str) -> dict:
     """
-    Creates a functional LangGraph for the technical interview.
-    In this MVP, the graph primarily enforces the UI and instruction state shifts.
-    """
-    workflow = StateGraph(InterviewState)
-
-    # Node functions define what happens when we arrive at a stage
-    def intro_node(state: InterviewState) -> dict:
-        logger.info("LangGraph Node: INTRO")
-        return {"current_stage": "INTRO", "ui_view": "avatar"}
-
-    def experience_node(state: InterviewState) -> dict:
-        logger.info("LangGraph Node: EXPERIENCE")
-        return {"current_stage": "EXPERIENCE", "ui_view": "avatar"}
-
-    def dsa_node(state: InterviewState) -> dict:
-        logger.info("LangGraph Node: DSA")
-        return {"current_stage": "DSA", "ui_view": "monaco"}
-
-    def sql_node(state: InterviewState) -> dict:
-        logger.info("LangGraph Node: SQL")
-        return {"current_stage": "SQL", "ui_view": "monaco"}
-
-    def report_node(state: InterviewState) -> dict:
-        logger.info("LangGraph Node: REPORT")
-        return {"current_stage": "REPORT", "ui_view": "report"}
-
-    # Add Nodes
-    workflow.add_node("INTRO", intro_node)
-    workflow.add_node("EXPERIENCE", experience_node)
-    workflow.add_node("DSA", dsa_node)
-    workflow.add_node("SQL", sql_node)
-    workflow.add_node("REPORT", report_node)
-
-    # Define edges (Strict sequence)
-    workflow.add_edge(START, "INTRO")
-    workflow.add_edge("INTRO", "EXPERIENCE")
-    workflow.add_edge("EXPERIENCE", "DSA")
-    workflow.add_edge("DSA", "SQL")
-    workflow.add_edge("SQL", "REPORT")
-    workflow.add_edge("REPORT", END)
-
-    return workflow.compile()
-
-interview_graph = create_interview_graph()
-
-async def advance_stage(candidate_id: str, next_node: str):
-    """
-    Helper to advance the interview stage using the LangGraph.
-    Includes context summarization to prevent context bloat.
+    Invoke the graph at the very first stage (INTRO).
+    Called once after the background question generation completes.
+    Returns the new state delta {current_stage, ui_view}.
     """
     state = store.get(candidate_id)
     if not state:
-        raise ValueError(f"Candidate session {candidate_id} not found.")
+        raise ValueError(f"[Graph] Candidate {candidate_id[:8]} not found in store")
+
+    result = await _graph.ainvoke(state, config=_thread_config(candidate_id))
+    store.update(candidate_id, current_stage=result["current_stage"], ui_view=result["ui_view"])
+    logger.info(f"[Graph] init_stage → {result['current_stage']}")
+    return result
+
+
+async def advance_stage(
+    candidate_id: str,
+    gemini_inject_fn,          # async callable(text: str) — soft steer
+) -> dict:
+    """
+    Advance to the next stage. Returns immediately after updating state.
+    Summarization is fired as a background task — it will call gemini_inject_fn
+    once complete so Gemini gets the context without blocking audio.
+
+    Returns: {"current_stage": str, "ui_view": str}
+    """
+    state = store.get(candidate_id)
+    if not state:
+        raise ValueError(f"[Graph] Candidate {candidate_id[:8]} not in store")
 
     current = state.get("current_stage", "INTRO")
-    target = validate_transition(current, next_node)
+    next_stage = STAGE_TRANSITIONS.get(current)
 
-    # STEP 1: Summarize current stage conversation
-    from agents.nodes import summarize_stage
-    summary = await summarize_stage(state)
-    
-    # FIX: Save context_summary to store BEFORE invoking graph
-    # (The graph nodes don't propagate it, so we save it separately)
-    if summary:
-        store.update(candidate_id, context_summary=summary)
-        logger.info(f"Saved context_summary for stage {current}: {summary[:50]}...")
-    
-    # STEP 2: Invoke the graph
-    logger.info(f"Invoking LangGraph: {current} -> {target}")
-    result = await interview_graph.ainvoke(
-        {"current_stage": target, "candidate_id": candidate_id}
+    if next_stage is None:
+        logger.warning(f"[Graph] No transition from {current} — already at end")
+        return {"current_stage": current, "ui_view": STAGE_UI_VIEW.get(current, "avatar")}
+
+    logger.info(f"[Graph] Advancing: {current} → {next_stage}")
+
+    # 1. Invoke LangGraph to checkpoint the transition
+    result = await _graph.ainvoke(
+        {**state, "current_stage": next_stage},
+        config=_thread_config(candidate_id),
+    )
+    store.update(candidate_id, current_stage=result["current_stage"], ui_view=result["ui_view"])
+
+    # 2. Fire summarization as a background task (non-blocking)
+    asyncio.create_task(
+        _summarize_and_inject(candidate_id, current, gemini_inject_fn),
+        name=f"summarize-{current}-{candidate_id[:8]}",
     )
 
-    # Sync result back to store
-    store.update(candidate_id, **result)
     return result
+
+
+async def _summarize_and_inject(
+    candidate_id: str,
+    completed_stage: str,
+    gemini_inject_fn,
+) -> None:
+    """
+    Background task: summarizes the just-completed stage and soft-steers Gemini
+    with that context. Fires ~1-3 seconds after the stage transition.
+    """
+    from agents.nodes import summarize_stage
+
+    state = store.get(candidate_id)
+    if not state:
+        return
+
+    summary = await summarize_stage(state, completed_stage)
+    if not summary:
+        logger.warning(f"[Graph] Summarization returned empty for stage {completed_stage}")
+        return
+
+    store.append_summary(candidate_id, summary)
+    logger.info(f"[Graph] Summary ready for {completed_stage}, injecting into Gemini")
+
+    # Soft steer: inject as hidden context, not a user-visible message
+    context_msg = (
+        f"[CONTEXT UPDATE — previous stage '{completed_stage}' summary]: {summary}"
+    )
+    try:
+        await gemini_inject_fn(context_msg)
+    except Exception as exc:
+        logger.error(f"[Graph] Failed to inject summary: {exc}")

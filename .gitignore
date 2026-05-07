@@ -12,9 +12,8 @@ Thumbs.db
 # others
 venv/
 .venv/
-gemini-live-genai-python-sdk/
-ai-interview-main/
 tests/logs
+.legacy/
 
 .python-version
 */__pycache__/

@@ -3,6 +3,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 interface UseWebSocketOptions {
   onAudioChunk?: (base64Data: string) => void;
   onInterrupted?: () => void;
+  onUIEvent?: (view: string) => void;
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
@@ -38,16 +39,20 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions) => {
       if (typeof event.data === 'string') {
         try {
           const data = JSON.parse(event.data);
-          console.log('[WS] JSON message:', data.type);
+          
           if (data.type === 'interrupted') {
             optionsRef.current.onInterrupted?.();
+          } else if (data.type === 'ui_event') {
+            console.log('[WS] UI Event received:', data.view);
+            optionsRef.current.onUIEvent?.(data.view);
+          } else if (data.type === 'error') {
+            console.error('[WS] Server error:', data.message);
           }
         } catch (e) {
           console.error('[WS] Error parsing JSON message', e);
         }
       } else if (event.data instanceof ArrayBuffer) {
-        console.log('[WS] Received binary audio chunk');
-        // Handle binary audio chunk directly from FastAPI websocket.send_bytes()
+        // Handle binary audio chunk directly
         const base64 = btoa(
           new Uint8Array(event.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
         );
@@ -74,9 +79,18 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions) => {
   const sendAudio = useCallback((base64Data: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({
-        realtimeInput: {
-          mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64Data }]
-        }
+        type: 'audio',
+        data: base64Data
+      }));
+    }
+  }, []);
+
+  const sendUIReady = useCallback((node: string) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      console.log('[WS] Sending ui_ready for:', node);
+      ws.current.send(JSON.stringify({
+        type: 'ui_ready',
+        node: node
       }));
     }
   }, []);
@@ -87,5 +101,5 @@ export const useWebSocket = (url: string, options: UseWebSocketOptions) => {
     };
   }, []);
 
-  return { connect, disconnect, isConnected, sendAudio };
+  return { connect, disconnect, isConnected, sendAudio, sendUIReady };
 };

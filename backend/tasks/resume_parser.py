@@ -12,7 +12,7 @@ from typing import Literal
 from fastapi import UploadFile
 from pydantic import BaseModel
 
-from services.llm_client import get_instructor_client, resolve_provider
+from tasks.llm_client import get_instructor_client, resolve_provider
 
 logger = logging.getLogger(__name__)
 

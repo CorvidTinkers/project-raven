@@ -134,7 +134,9 @@ async def get_interview_status(candidate_id: str):
     return {
         "candidate_id": candidate_id,
         "current_stage": state.get("current_stage", "UNKNOWN"),
-        "status": state.get("status", "unknown"),  # "initializing", "processing", "ready", "error"
+        "status": state.get("status", "unknown"),
         "is_ready": state.get("status") == "ready",
-        "error_message": state.get("error_message")
+        "error_message": state.get("error_message"),
+        "matched_skills": state.get("matched_skills", []),
+        "code_grade": state.get("code_grade")
     }

@@ -1,6 +1,11 @@
 import os
 import logging
+import warnings
 from dotenv import load_dotenv
+
+# Suppress library warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="instructor")
+warnings.filterwarnings("ignore", message=".*allowed_objects.*")
 
 # Load environment variables FIRST before any other imports
 load_dotenv(dotenv_path="../.env")

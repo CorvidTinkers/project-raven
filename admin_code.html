@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Interviewer Dashboard - Project Raven</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#f7f3f2",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-tertiary-fixed-variant": "#484645",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#000000",
+                        "outline": "#747878",
+                        "surface-container": "#f1edec",
+                        "tertiary-container": "#1c1b1a",
+                        "surface-tint": "#5f5e5e",
+                        "primary-fixed": "#e5e2e1",
+                        "on-primary-container": "#858383",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "inverse-surface": "#313030",
+                        "tertiary-fixed-dim": "#cac6c4",
+                        "on-background": "#1c1b1b",
+                        "on-primary-fixed": "#1c1b1b",
+                        "outline-variant": "#c4c7c7",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f4f0ef",
+                        "error": "#ba1a1a",
+                        "primary": "#000000",
+                        "on-primary-fixed-variant": "#474646",
+                        "on-secondary-container": "#5f6161",
+                        "on-surface": "#1c1b1b",
+                        "surface-container-high": "#ebe7e6",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#1c1b1b",
+                        "surface-dim": "#ddd9d8",
+                        "primary-fixed-dim": "#c8c6c5",
+                        "surface": "#fdf8f8",
+                        "on-primary": "#ffffff",
+                        "secondary": "#5d5f5f",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#444748",
+                        "secondary-container": "#dcdddd",
+                        "surface-bright": "#fdf8f8",
+                        "on-tertiary-container": "#868381",
+                        "background": "#fdf8f8",
+                        "surface-variant": "#e5e2e1",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#c8c6c5",
+                        "on-tertiary-fixed": "#1c1b1a",
+                        "tertiary-fixed": "#e6e1df"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "64px",
+                        "border_width": "1.5px",
+                        "base": "4px",
+                        "gutter": "24px",
+                        "md": "24px",
+                        "lg": "40px",
+                        "sm": "16px",
+                        "xs": "8px"
+                    },
+                    "fontFamily": {
+                        "code": ["Space Grotesk"],
+                        "h1": ["Space Grotesk"],
+                        "label-caps": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "h2": ["Space Grotesk"],
+                        "mono-body": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "code": ["16px", { "lineHeight": "1.7", "fontWeight": "500" }],
+                        "h1": ["36px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-caps": ["14px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "800" }],
+                        "body": ["16px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "500" }],
+                        "h2": ["28px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "mono-body": ["15px", { "lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #fdf8f8;
+            color: #1c1b1b;
+        }
+
+        .border-hard {
+            border: 1.5px solid #000;
+        }
+
+        .border-hard-thick {
+            border: 3px solid #000;
+        }
+
+        .shadow-hard {
+            box-shadow: 4px 4px 0px 0px #000;
+        }
+
+        .shadow-hard-hover:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px 0px #5f5e5e;
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+
+<body class="bg-surface text-on-surface font-body text-body h-screen flex overflow-hidden">
+    <!-- SideNavBar -->
+    <nav
+        class="bg-surface border-r-[1.5px] border-primary z-40 fixed left-0 top-0 h-full flex flex-col w-64 hidden md:flex shrink-0">
+        <div class="px-md py-xl border-b-[1.5px] border-primary">
+            <div class="flex items-center gap-sm mb-xs">
+                <div
+                    class="w-8 h-8 bg-primary text-on-primary flex items-center justify-center font-bold text-body shrink-0">
+                    R</div>
+                <h1 class="font-h2 text-h2 font-bold text-primary tracking-tight">RAVEN</h1>
+            </div>
+            <p class="font-label-caps text-label-caps text-secondary">Technical Assessment</p>
+        </div>
+        <div class="flex-1 p-md space-y-sm">
+            <a class="flex items-center gap-md px-md py-sm bg-primary text-on-primary font-label-caps text-label-caps border-hard"
+                href="#">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+            <a class="flex items-center gap-md px-md py-sm text-primary hover:bg-surface-container-high transition-none font-label-caps text-label-caps border-[1.5px] border-transparent hover:border-primary"
+                href="#">
+                <span class="material-symbols-outlined">person_search</span>
+                <span>Candidate</span>
+            </a>
+            <a class="flex items-center gap-md px-md py-sm text-primary hover:bg-surface-container-high transition-none font-label-caps text-label-caps border-[1.5px] border-transparent hover:border-primary"
+                href="#">
+                <span class="material-symbols-outlined">receipt_long</span>
+                <span>Logs</span>
+            </a>
+            <a class="flex items-center gap-md px-md py-sm text-primary hover:bg-surface-container-high transition-none font-label-caps text-label-caps border-[1.5px] border-transparent hover:border-primary"
+                href="#">
+                <span class="material-symbols-outlined">grading</span>
+                <span>Evaluation</span>
+            </a>
+        </div>
+    </nav>
+    <!-- Main Content Canvas -->
+    <main class="flex-1 flex flex-col ml-0 md:ml-64 relative h-full">
+        <!-- TopAppBar (Mobile Only) -->
+        <header
+            class="bg-surface border-b-[1.5px] border-primary flex justify-between items-center w-full px-md h-16 mx-auto md:hidden z-30 shrink-0">
+            <h1 class="font-h2 text-h2 font-bold tracking-tight text-primary">PROJECT RAVEN</h1>
+            <div class="flex items-center gap-md">
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all text-primary"><span
+                        class="material-symbols-outlined">monitoring</span></button>
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all text-primary"><span
+                        class="material-symbols-outlined">history</span></button>
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all text-primary"><span
+                        class="material-symbols-outlined">settings</span></button>
+            </div>
+        </header>
+        <!-- TopAppBar (Web - Adjusted for SideNav context) -->
+        <header
+            class="bg-surface border-b-[1.5px] border-primary hidden md:flex justify-between items-center w-full px-gutter h-16 z-30 shrink-0">
+            <h1 class="font-h2 text-h2 font-bold tracking-tight text-primary">PROJECT RAVEN</h1>
+            <div class="flex items-center gap-sm">
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all text-primary"><span
+                        class="material-symbols-outlined">monitoring</span></button>
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all text-primary"><span
+                        class="material-symbols-outlined">history</span></button>
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all text-primary"><span
+                        class="material-symbols-outlined">settings</span></button>
+            </div>
+        </header>
+        <!-- Dashboard Content -->
+        <div class="flex-1 overflow-y-auto p-gutter space-y-gutter w-full flex flex-col">
+            <!-- Agent Status Header -->
+            <section
+                class="flex flex-col md:flex-row justify-between items-start md:items-center gap-gutter border-hard p-md bg-surface-container-lowest shadow-hard shrink-0">
+                <div>
+                    <h2 class="font-h2 text-h2 font-bold text-primary mb-xs">Active Session: Alex Mercer</h2>
+                    <p class="font-mono-body text-mono-body text-secondary">Backend Engineering Role • 45:12 Elapsed</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-sm">
+                    <div class="bg-surface-container-low px-md py-sm border-hard flex items-center gap-sm">
+                        <div class="w-2 h-2 bg-[#0f0] animate-pulse"></div>
+                        <span class="font-label-caps text-label-caps text-primary">AGENT LISTENING</span>
+                    </div>
+                    <button
+                        class="bg-primary text-on-primary border-hard px-md py-sm font-label-caps text-label-caps shadow-hard-hover">INTERVENE</button>
+                    <button
+                        class="bg-surface text-primary border-hard px-md py-sm font-label-caps text-label-caps shadow-hard-hover">PAUSE</button>
+                    <button
+                        class="bg-error text-on-error border-hard px-md py-sm font-label-caps text-label-caps shadow-hard-hover">END</button>
+                </div>
+            </section>
+            <!-- Grid Layout Top Section -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-gutter shrink-0">
+                <!-- Left Column: Metrics -->
+                <div class="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-gutter h-max">
+                    <!-- Metric Card 1 -->
+                    <div class="border-hard bg-surface-container-lowest flex flex-col shadow-hard p-sm">
+                        <div class="flex justify-between items-start border-b-[1.5px] border-primary pb-sm mb-xs">
+                            <span class="font-label-caps text-label-caps text-primary">Technical Depth</span>
+                            <span class="material-symbols-outlined text-primary text-sm">trending_up</span>
+                        </div>
+                        <div>
+                            <div class="font-h1 text-primary font-bold text-h2">8.5</div>
+                            <p class="font-body text-body text-on-surface mt-xs">Strong understanding of distributed
+                                systems.</p>
+                        </div>
+                    </div>
+                    <!-- Metric Card 2 -->
+                    <div class="border-hard bg-surface-container-lowest flex flex-col shadow-hard p-sm">
+                        <div class="flex justify-between items-start border-b-[1.5px] border-primary pb-sm mb-xs">
+                            <span class="font-label-caps text-label-caps text-primary">Communication</span>
+                            <span class="material-symbols-outlined text-primary text-sm">trending_flat</span>
+                        </div>
+                        <div>
+                            <div class="font-h1 text-primary font-bold text-h2">7.2</div>
+                            <p class="font-body text-body text-on-surface mt-xs">Clear, but slightly verbose on
+                                architecture.</p>
+                        </div>
+                    </div>
+                    <!-- Metric Card 3 -->
+                    <div class="border-hard bg-surface-container-lowest flex flex-col shadow-hard p-sm">
+                        <div class="flex justify-between items-start border-b-[1.5px] border-primary pb-sm mb-xs">
+                            <span class="font-label-caps text-label-caps text-primary">Problem Solving</span>
+                            <span class="material-symbols-outlined text-primary text-sm">trending_up</span>
+                        </div>
+                        <div>
+                            <div class="font-h1 text-primary font-bold text-h2">9.0</div>
+                            <p class="font-body text-body text-on-surface mt-xs">Excellent pivot when constraint was
+                                added.</p>
+                        </div>
+                    </div>
+                    <!-- Metric Card 4 -->
+                    <div class="border-hard bg-surface-container-lowest flex flex-col shadow-hard p-sm">
+                        <div class="flex justify-between items-start border-b-[1.5px] border-primary pb-sm mb-xs">
+                            <span class="font-label-caps text-label-caps text-primary">SQL/DSA Correctness</span>
+                            <span class="material-symbols-outlined text-error text-sm">trending_down</span>
+                        </div>
+                        <div>
+                            <div class="font-h1 text-primary font-bold text-h2">6.8</div>
+                            <p class="font-body text-body text-on-surface mt-xs">Missed edge case in binary tree
+                                traversal.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Column: Agent View & Notes -->
+                <div class="flex flex-col gap-gutter h-full">
+                    <!-- Agent Waveform -->
+                    <div
+                        class="border-hard bg-surface-container-lowest flex flex-col shadow-hard relative overflow-hidden min-h-[200px] shrink-0">
+                        <div
+                            class="p-sm border-b-[1.5px] border-primary flex justify-between items-center z-10 bg-surface-container-lowest">
+                            <span class="font-label-caps text-label-caps text-primary">AUDIO FEED</span>
+                            <span class="material-symbols-outlined text-primary text-sm">mic</span>
+                        </div>
+                        <div class="flex-1 relative flex items-center justify-center p-md bg-[#131313]">
+                            <img alt="Agent Waveform Visualization"
+                                class="absolute inset-0 w-3/4 h-3/4 object-contain mx-auto my-auto opacity-100 invert"
+                                data-alt="A minimalist digital art waveform consisting of clean, sharp black lines oscillating against a pure white background. The visual represents an active AI voice agent processing audio. The style is stark, modern, and highly contrasted, fitting a strict black-and-white professional UI aesthetic."
+                                src="https://lh3.googleusercontent.com/aida/ADBb0ujx4191_ElIQGqeaCv3VNT5Hf9WPNSygjfUzpEUFKSkLeciqvhf_0uYB12nq_9Pg4_Z6ZdNNpy5bPcYhRP-X3WgAvFY2oiExs9_u_s4GH5czmjnJrSID6Ze77kC21G3_vDpMlP-ihHSqMgEUs0r-hjlo2ZHncvWmMByLRuXh4U7rQOrv0Hj9q8vRrJ69ov1_iz7uChWmvhkN8WFtvHoRAwIgMAfB_vKAF_Y-FHP__95ZXy5N2ASL-GTvOA" />
+                            <div class="absolute bottom-md right-md flex gap-xs">
+                                <div class="w-3 h-3 rounded-full bg-surface animate-bounce"></div>
+                                <div class="w-3 h-3 rounded-full bg-surface animate-bounce"
+                                    style="animation-delay: 0.1s"></div>
+                                <div class="w-3 h-3 rounded-full bg-surface animate-bounce"
+                                    style="animation-delay: 0.2s"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Auto-Notes -->
+                    <div
+                        class="border-hard bg-surface-container-lowest flex flex-col shadow-hard min-h-[200px] max-h-[300px] flex-1">
+                        <div
+                            class="border-b-[1.5px] border-primary p-sm bg-surface-container-lowest flex justify-between items-center shrink-0">
+                            <span class="font-label-caps text-label-caps text-primary">AUTO-GENERATED NOTES</span>
+                            <span class="material-symbols-outlined text-primary text-sm">edit_note</span>
+                        </div>
+                        <div
+                            class="p-md font-mono-body text-mono-body text-on-surface bg-surface-container-low flex-1 overflow-y-auto leading-relaxed">
+                            <p class="mb-sm">&gt; Candidate correctly identified O(n log n) time complexity.</p>
+                            <p class="mb-sm">&gt; Paused for 14s before answering scaling question.</p>
+                            <p class="mb-sm">&gt; Mentioned Redis caching, but failed to detail cache invalidation
+                                strategy.</p>
+                            <p class="mb-sm font-bold text-primary">&gt; Strong system design intuition; weak on
+                                immediate implementation specifics.</p>
+                            <div class="animate-pulse w-3 h-5 bg-primary mt-sm inline-block"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Q&A Transcript Feed -->
+            <section class="border-hard bg-surface-container-lowest flex flex-col shadow-hard flex-1 min-h-[400px]">
+                <div
+                    class="p-sm border-b-[1.5px] border-primary flex justify-between items-center bg-surface-container-lowest sticky top-0 z-10 shrink-0">
+                    <span class="font-label-caps text-label-caps text-primary">LIVE TRANSCRIPT</span>
+                    <span class="material-symbols-outlined text-primary text-sm">forum</span>
+                </div>
+                <div class="p-md flex-1 overflow-y-auto space-y-md bg-surface">
+                    <!-- Agent Question -->
+                    <div class="flex flex-col gap-xs w-[85%] max-w-3xl">
+                        <span class="font-label-caps text-xs text-secondary">AGENT RAVEN</span>
+                        <div class="p-sm border-hard bg-surface-container-lowest">
+                            <p class="font-body text-body">Can you explain how you would design a rate limiter for a
+                                distributed API?</p>
+                        </div>
+                    </div>
+                    <!-- Candidate Answer -->
+                    <div class="flex flex-col gap-xs w-[85%] max-w-3xl ml-auto items-end">
+                        <span class="font-label-caps text-xs text-secondary">ALEX MERCER</span>
+                        <div class="p-sm border-hard bg-primary text-on-primary text-left w-full">
+                            <p class="font-body text-body">I'd probably use Redis. We could implement a sliding window
+                                log or a token bucket algorithm. For a distributed setup, Redis handles the atomic
+                                operations well so we avoid race conditions between different API servers.</p>
+                        </div>
+                    </div>
+                    <!-- Agent Question -->
+                    <div class="flex flex-col gap-xs w-[85%] max-w-3xl">
+                        <span class="font-label-caps text-xs text-secondary">AGENT RAVEN</span>
+                        <div class="p-sm border-hard bg-surface-container-lowest">
+                            <p class="font-body text-body">How would you handle the memory overhead if we have millions
+                                of users hitting the API concurrently with a sliding window log approach?</p>
+                        </div>
+                    </div>
+                    <!-- Candidate Typing / Speaking -->
+                    <div class="flex flex-col gap-xs w-[85%] max-w-3xl ml-auto items-end">
+                        <span class="font-label-caps text-xs text-secondary">ALEX MERCER</span>
+                        <div class="p-sm border-hard bg-surface-container-high text-primary w-24 flex justify-center">
+                            <div class="flex gap-1 items-center">
+                                <div class="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                                <div class="w-2 h-2 bg-primary rounded-full animate-bounce"
+                                    style="animation-delay: 0.1s"></div>
+                                <div class="w-2 h-2 bg-primary rounded-full animate-bounce"
+                                    style="animation-delay: 0.2s"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Project Raven - Technical Assessment</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-low": "#f7f3f2",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-tertiary-fixed-variant": "#484645",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#000000",
+                        "outline": "#747878",
+                        "surface-container": "#f1edec",
+                        "tertiary-container": "#1c1b1a",
+                        "surface-tint": "#5f5e5e",
+                        "primary-fixed": "#e5e2e1",
+                        "on-primary-container": "#858383",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "inverse-surface": "#313030",
+                        "tertiary-fixed-dim": "#cac6c4",
+                        "on-background": "#1c1b1b",
+                        "on-primary-fixed": "#1c1b1b",
+                        "outline-variant": "#c4c7c7",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#f4f0ef",
+                        "error": "#ba1a1a",
+                        "primary": "#000000",
+                        "on-primary-fixed-variant": "#474646",
+                        "on-secondary-container": "#5f6161",
+                        "on-surface": "#1c1b1b",
+                        "surface-container-high": "#ebe7e6",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#1c1b1b",
+                        "surface-dim": "#ddd9d8",
+                        "primary-fixed-dim": "#c8c6c5",
+                        "surface": "#fdf8f8",
+                        "on-primary": "#ffffff",
+                        "secondary": "#5d5f5f",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#444748",
+                        "secondary-container": "#dcdddd",
+                        "surface-bright": "#fdf8f8",
+                        "on-tertiary-container": "#868381",
+                        "background": "#fdf8f8",
+                        "surface-variant": "#e5e2e1",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#c8c6c5",
+                        "on-tertiary-fixed": "#1c1b1a",
+                        "tertiary-fixed": "#e6e1df"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "64px",
+                        "border_width": "1.5px",
+                        "base": "4px",
+                        "gutter": "24px",
+                        "md": "24px",
+                        "lg": "40px",
+                        "sm": "16px",
+                        "xs": "8px"
+                    },
+                    "fontFamily": {
+                        "code": ["Space Grotesk"],
+                        "h1": ["Space Grotesk"],
+                        "label-caps": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "h2": ["Space Grotesk"],
+                        "mono-body": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "code": ["16px", { "lineHeight": "1.7", "fontWeight": "500" }],
+                        "h1": ["36px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-caps": ["14px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "800" }],
+                        "body": ["16px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "500" }],
+                        "h2": ["28px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "mono-body": ["15px", { "lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }</script>
+    <style>
+        body {
+            background-color: #fdf8f8;
+            color: #1c1b1b;
+        }
+
+        .border-hard {
+            border: 1.5px solid #000;
+        }
+
+        .border-hard-thick {
+            border: 3px solid #000;
+        }
+
+        .shadow-hard {
+            box-shadow: 4px 4px 0px 0px #000;
+        }
+
+        .shadow-hard-hover:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px 0px #5f5e5e;
+            transition: all 0.2s ease;
+        }
+
+        .bg-editor {
+            background-color: #F9F9F9;
+        }
+
+        .bg-terminal {
+            background-color: #131313;
+            color: #ffffff;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen overflow-hidden bg-surface">
+    <!-- TopAppBar -->
+    <header
+        class="bg-surface dark:bg-surface text-primary dark:text-primary font-h2 text-h2 w-full top-0 border-b-[1.5px] border-primary dark:border-primary flex justify-between items-center px-md py-sm shrink-0 z-20">
+        <div class="flex items-center gap-sm">
+            <div class="w-8 h-8 bg-primary text-on-primary flex items-center justify-center font-bold text-body">R</div>
+            <div class="font-h1 text-h1 font-bold text-primary dark:text-primary">Project Raven</div>
+        </div>
+        <div class="flex items-center gap-md">
+            <div class="font-label-caps text-label-caps flex items-center gap-xs">
+                <span class="w-2 h-2 rounded-full bg-primary block"></span>
+                System: Operational
+            </div>
+            <div class="flex gap-sm">
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all">
+                    <span class="material-symbols-outlined">settings</span>
+                </button>
+                <button
+                    class="w-10 h-10 border-hard flex items-center justify-center hover:bg-secondary-container transition-all">
+                    <span class="material-symbols-outlined">account_circle</span>
+                </button>
+            </div>
+        </div>
+    </header>
+    <!-- Canvas Area -->
+    <main class="flex-1 flex p-gutter gap-gutter overflow-hidden relative z-10">
+        <!-- Left Panel (Problem & Code) -->
+        <div class="w-[60%] flex flex-col h-full gap-gutter">
+            <!-- Problem Statement & Editor Block -->
+            <div class="border-hard bg-surface-container-lowest p-md flex flex-col shadow-hard h-full">
+                <div class="border-b-[1.5px] border-primary pb-sm mb-md flex justify-between items-center shrink-0">
+                    <h2 class="font-h2 text-h2 text-primary font-bold">Problem Statement: Sum of Primes</h2>
+                    <div class="font-label-caps text-label-caps text-secondary px-sm py-xs border-hard font-medium">EASY
+                    </div>
+                </div>
+                <div class="font-body text-body text-on-surface mb-md shrink-0">
+                    <p class="mb-sm">Write a function that takes an integer <code>n</code> and returns the sum of all
+                        prime numbers less than or equal to <code>n</code>.</p>
+                    <p><strong>Constraints:</strong> <code>0 &lt;= n &lt;= 10^6</code></p>
+                </div>
+                <!-- Code Editor Mockup -->
+                <div class="border-hard bg-editor flex-1 flex flex-col min-h-[300px]">
+                    <div class="border-b-[1.5px] border-primary p-xs flex gap-xs bg-surface-container-high shrink-0">
+                        <div class="bg-primary text-on-primary px-sm py-xs font-label-caps text-label-caps border-hard">
+                            main.py</div>
+                        <div
+                            class="text-primary px-sm py-xs font-label-caps text-label-caps border-transparent border-b-primary border-b-[1.5px] hover:bg-surface-container-low cursor-pointer">
+                            tests.py</div>
+                    </div>
+                    <div class="flex flex-1 p-sm font-code text-code text-on-surface overflow-y-auto font-medium">
+                        <div class="w-8 text-right pr-sm border-r-[1.5px] border-primary text-secondary select-none">
+                            1<br />2<br />3<br />4<br />5
+                        </div>
+                        <div class="pl-sm flex-1 whitespace-pre">
+                            def sum_of_primes(n: int) -&gt; int:
+                            # Your code here
+                            pass
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Right Panel (Agent Interface & Transcript) -->
+        <div class="w-[40%] flex flex-col gap-gutter h-full">
+            <!-- Agent Visualization Block -->
+            <div
+                class="border-hard h-[45%] flex flex-col shadow-hard relative overflow-hidden shrink-0 bg-surface-container-lowest">
+                <div
+                    class="p-sm border-b-[1.5px] border-primary flex justify-between items-center z-10 bg-surface-container-lowest shrink-0">
+                    <span class="font-label-caps text-label-caps text-primary">RAVEN AGENT V2.4</span>
+                    <div class="flex items-center gap-xs">
+                        <span class="w-2 h-2 rounded-full bg-[#0f0] animate-pulse"></span>
+                        <span class="font-label-caps text-label-caps text-[#0f0]">LISTENING</span>
+                    </div>
+                </div>
+                <div class="flex-1 relative flex items-center justify-center p-md">
+                    <div class="flex flex-col items-center justify-center w-full h-full gap-lg">
+                        <div class="flex items-end gap-xs h-24 items-center justify-center">
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_1s_infinite]" style="height: 40%">
+                            </div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_1.2s_infinite]"
+                                style="height: 70%"></div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_0.8s_infinite]"
+                                style="height: 50%"></div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_1.5s_infinite]"
+                                style="height: 90%"></div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_1.1s_infinite]"
+                                style="height: 60%"></div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_0.9s_infinite]"
+                                style="height: 80%"></div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_1.3s_infinite]"
+                                style="height: 45%"></div>
+                            <div class="w-1.5 bg-primary rounded-full animate-[bounce_1s_infinite]" style="height: 65%">
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <p class="font-label-caps text-label-caps text-secondary">AI VOICE INTERFACE ACTIVE</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Interview Controls -->
+                <div
+                    class="p-sm border-t-[1.5px] border-primary z-10 bg-surface-container-lowest grid grid-cols-2 gap-sm shrink-0">
+                    <button
+                        class="bg-white text-primary font-label-caps text-label-caps p-sm border-hard shadow-hard-hover flex items-center justify-center gap-xs">
+                        <span class="material-symbols-outlined">mic_off</span>
+                        MUTE
+                    </button>
+                    <button
+                        class="bg-error text-on-error font-label-caps text-label-caps p-sm border-hard shadow-hard-hover flex items-center justify-center gap-xs">
+                        <span class="material-symbols-outlined">call_end</span>
+                        END
+                    </button>
+                </div>
+            </div>
+            <!-- Live Transcript Block -->
+            <div class="border-hard bg-surface-container-lowest p-md flex flex-col shadow-hard flex-1 min-h-0">
+                <div class="border-b-[1.5px] border-primary pb-sm mb-sm shrink-0">
+                    <h2 class="font-label-caps text-label-caps text-primary">Live Transcript</h2>
+                </div>
+                <div class="flex-1 overflow-y-auto flex flex-col gap-lg font-mono-body text-mono-body">
+                    <!-- Agent Message -->
+                    <div class="flex flex-col gap-xs">
+                        <div
+                            class="w-8 h-8 bg-primary text-on-primary flex items-center justify-center font-bold border-hard shrink-0">
+                            R</div>
+                        <div class="p-sm text-on-surface rounded-none w-full font-semibold text-lg">
+                            Hello Candidate. Let's begin. Can you explain your initial approach to the 'Sum of Primes'
+                            problem?
+                        </div>
+                    </div>
+                    <!-- Candidate Message -->
+                    <div class="flex gap-sm items-start flex-row-reverse">
+                        <div
+                            class="w-8 h-8 bg-surface-container-high border-hard flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined">person</span>
+                        </div>
+                        <div
+                            class="bg-surface-container-low p-sm border-hard text-on-surface rounded-none max-w-[85%] font-medium text-lg">
+                            Hi. Yes, I'm thinking of using the Sieve of Eratosthenes to efficiently find all primes up
+                            to n, and then sum them up.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

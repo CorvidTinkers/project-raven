@@ -8,6 +8,7 @@ load_dotenv(dotenv_path="../.env")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.websocket import router as websocket_router
+from api.routes import router as http_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(http_router, prefix="/api")
 app.include_router(websocket_router)
 
 @app.get("/health")
